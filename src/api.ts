@@ -6,6 +6,8 @@ export type Category = "operation" | "maintenance";
 export type InputType = "radio" | "checkbox";
 
 export const P = {
+  PLANTS_VIEW: "plants:view",
+  PLANTS_MANAGE: "plants:manage",
   MACHINES_VIEW: "machines:view",
   MACHINES_MANAGE: "machines:manage",
   CHECKLISTS_VIEW: "checklists:view",
@@ -26,8 +28,13 @@ export interface CheckItem {
   input_type: InputType; is_required: boolean; sort_order: number; is_active: boolean; options: Option[]
 }
 export interface LastInspection { id: number; performed_at: string; performed_by_name: string }
+export interface Plant {
+  id: number; name: string; code: string | null; location: string; description: string | null
+  is_active: boolean; machine_count: number; active_machines_count: number; last_inspection: LastInspection | null
+}
 export interface Machine {
-  id: number; name: string; serial_number: string; location: string | null; installed_on: string | null
+  id: number; plant_id: number | null; plant_name: string | null; plant_location: string | null
+  name: string; serial_number: string; location: string | null; installed_on: string | null
   is_active: boolean; machine_type_id: number; machine_type_name: string; last_inspection: LastInspection | null
 }
 export interface InspectionSummary {

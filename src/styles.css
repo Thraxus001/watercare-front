@@ -1,12 +1,21 @@
 @import "tailwindcss";
 
-/* Brand colours – use as bg-brand, text-brand, border-brand, bg-brand-dark … */
 @theme {
-  --color-brand: #0a78b5;
-  --color-brand-dark: #075d8c;
-  --color-brand-light: #e3f1f9;
+  --color-brand: #0284c7;
+  --color-brand-dark: #0369a1;
+  --color-brand-light: #e0f2fe;
+  --color-brand-muted: #f0f9ff;
 }
 
 @layer base {
-  body { @apply bg-slate-100 text-slate-900 antialiased; }
+  * {
+    border-color: var(--color-slate-200);
+  }
+  body {
+    background-color: #f8fafc;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
 }

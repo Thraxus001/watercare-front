@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
-import { Button, ErrorMsg, Field, cardCls, cn, errMsg, h1Cls, inputCls, mutedCls } from "../ui";
+import { Button, ErrorMsg, Field, cardCls, cn, errMsg, inputCls, mutedCls } from "../ui";
 
 export default function Login() {
   const { user, login } = useAuth();
@@ -22,15 +22,35 @@ export default function Login() {
   }
 
   return (
-    <form className={cn(cardCls, "mx-auto mt-[12vh] max-w-sm p-6")} onSubmit={submit}>
-      <h1 className={h1Cls + " mb-1"}>💧 WaterCare</h1>
-      <p className={cn(mutedCls, "mb-4 text-sm")}>Sign in to log and review machine checkups.</p>
-      <div className="space-y-3">
-        <Field label="Email"><input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus /></Field>
-        <Field label="Password"><input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
-      </div>
-      <ErrorMsg error={error} />
-      <Button variant="primary" className="mt-4 w-full" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</Button>
-    </form>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <form className={cn(cardCls, "w-full max-w-md p-8 shadow-md border-slate-200/80")} onSubmit={submit}>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 to-sky-700 text-white flex items-center justify-center text-2xl shadow-sm shadow-sky-500/30">
+            💧
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">WaterCare</h1>
+            <p className="text-xs font-semibold uppercase tracking-wider text-sky-600">Operations & Maintenance</p>
+          </div>
+        </div>
+
+        <p className={cn(mutedCls, "mb-6 text-sm")}>Sign in to access plant equipment and log maintenance inspections.</p>
+        
+        <div className="space-y-4">
+          <Field label="Email address">
+            <input className={inputCls} type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          </Field>
+          <Field label="Password">
+            <input className={inputCls} type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </Field>
+        </div>
+
+        <ErrorMsg error={error} />
+        
+        <Button variant="primary" className="mt-6 w-full py-2.5 text-sm" disabled={busy}>
+          {busy ? "Signing in…" : "Sign in to WaterCare"}
+        </Button>
+      </form>
+    </div>
   );
 }

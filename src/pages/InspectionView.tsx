@@ -11,13 +11,15 @@ function LinkedNotes({ machineId, inspectionId }: { machineId: number; inspectio
   if (!notes.length) return null;
   return (
     <Card>
-      <h2 className={h2Cls}>Notes from this checkup</h2>
-      {notes.map((n) => (
-        <div className={noteCls} key={n.id}>
-          <div className="whitespace-pre-wrap">{n.body}</div>
-          <div className={cn(mutedCls, "text-sm")}>{n.author_name} · {fmt(n.created_at)}</div>
-        </div>
-      ))}
+      <h2 className={h2Cls}>Notes recorded during checkup</h2>
+      <div className="space-y-3 mt-3">
+        {notes.map((n) => (
+          <div className={noteCls} key={n.id}>
+            <div className="whitespace-pre-wrap text-sm text-slate-800">{n.body}</div>
+            <div className={cn(mutedCls, "mt-2 text-xs")}>{n.author_name} · {fmt(n.created_at)}</div>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }
@@ -32,30 +34,76 @@ export default function InspectionView() {
 
   return (
     <>
-      <p className="mb-2 text-sm"><Link className={linkCls} to={`/machines/${i.machine_id}`}>← {i.machine_name}</Link></p>
-      <Card>
-        <h1 className="text-2xl font-semibold">Checkup · {i.machine_name}</h1>
-        <div className={mutedCls}>{fmt(i.performed_at)} · by {i.performed_by_name}</div>
-        {i.summary && <p className="mt-2">{i.summary}</p>}
+      <div className="mb-4 flex items-center gap-2 text-sm">
+        <Link className="inline-flex items-center gap-1.5 font-semibold text-slate-500 hover:text-sky-600 transition-colors" to="/inspections">
+          <span>←</span>
+          <span>All Checkups</span>
+        </Link>
+        <span className="text-slate-300">/</span>
+        <span className="font-medium text-slate-800">Checkup #{i.id}</span>
+      </div>
+
+      <Card className="border-l-4 border-l-sky-500">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+              Checkup · {i.machine_name}
+            </h1>
+            <div className={cn(mutedCls, "mt-1.5 flex flex-wrap items-center gap-2 text-sm")}>
+              <span className="font-semibold text-slate-800">📅 {fmt(i.performed_at)}</span>
+              <span>·</span>
+              <span>Inspected by <b>{i.performed_by_name}</b></span>
+            </div>
+            {i.summary && (
+              <div className="mt-3 bg-slate-50 border border-slate-200/60 rounded-xl p-3 text-sm text-slate-700 leading-relaxed">
+                <span className="font-semibold text-slate-900 block mb-0.5 text-xs uppercase tracking-wide">Summary:</span>
+                {i.summary}
+              </div>
+            )}
+          </div>
+          <div>
+            <Link className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors" to={`/machines/${i.machine_id}`}>
+              View machine details →
+            </Link>
+          </div>
+        </div>
       </Card>
+
       {(["operation", "maintenance"] as Category[]).map((c) => {
         const list = i.answers.filter((a) => a.category === c);
         if (!list.length) return null;
         return (
           <Card key={c}>
-            <h2 className={h2Cls}>{TITLES[c]}</h2>
+            <div className="border-b border-slate-100 pb-2 mb-4">
+              <h2 className={h2Cls}>{TITLES[c]}</h2>
+            </div>
             <div className="divide-y divide-slate-100">
               {list.map((a, idx) => (
-                <div className="py-3" key={idx}>
-                  <b>{a.label}</b>
-                  {a.options.map((o, k) => (
-                    <div key={k} className={cn("text-sm", o.is_checked ? "font-medium text-green-700" : "text-slate-400")}>
-                      {o.is_checked ? "✔" : "✗"} {o.label}{" "}
-                      <span className="text-xs">
-                        {o.is_checked ? (a.input_type === "radio" ? "(selected)" : "(done)") : a.input_type === "radio" ? "" : "(not done)"}
-                      </span>
-                    </div>
-                  ))}
+                <div className="py-4 first:pt-0 last:pb-0" key={idx}>
+                  <div className="font-bold text-slate-900 text-sm">{a.label}</div>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {a.options.map((o, k) => (
+                      <div
+                        key={k}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium border transition-colors",
+                          o.is_checked
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800 shadow-2xs"
+                            : "border-slate-200 bg-slate-50 text-slate-400 opacity-60"
+                        )}
+                      >
+                        <span className={cn("text-xs font-bold", o.is_checked ? "text-emerald-600" : "text-slate-400")}>
+                          {o.is_checked ? "✔" : "✗"}
+                        </span>
+                        <span>{o.label}</span>
+                        {o.is_checked && (
+                          <span className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">
+                            ({a.input_type === "radio" ? "selected" : "completed"})
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
