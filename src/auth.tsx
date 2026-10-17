@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api, getToken, setToken, setUnauthorizedHandler, type User, P } from "./api";
 
 // Set to false when ready to re-enable authentication/login screen
-export const BYPASS_AUTH = true;
+export const BYPASS_AUTH = false;
 
 export const DEFAULT_DEV_USER: User = {
   id: 1,

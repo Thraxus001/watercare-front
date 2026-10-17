@@ -50,6 +50,23 @@ export default function Login() {
         <Button variant="primary" className="mt-6 w-full py-2.5 text-sm" disabled={busy}>
           {busy ? "Signing in…" : "Sign in to WaterCare"}
         </Button>
+
+        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <div className="truncate mr-2">
+            <span className="text-slate-400">Demo admin: </span>
+            <span className="font-mono text-slate-600 text-[11px]">admin@yourcompany.com</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail("admin@yourcompany.com");
+              setPassword("ChangeMe123!");
+            }}
+            className="text-sky-600 hover:text-sky-700 font-semibold text-xs whitespace-nowrap hover:underline cursor-pointer"
+          >
+            Auto-fill
+          </button>
+        </div>
       </form>
     </div>
   );

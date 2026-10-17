@@ -126,7 +126,7 @@ function Layout() {
 export default function App() {
   return (
     <Routes>
-      {/* <Route path="/login" element={<Login />} /> */}
+      <Route path="/login" element={<Login />} />
       <Route element={<Guard><Layout /></Guard>}>
         <Route index element={<Guard perms={[P.PLANTS_VIEW, P.MACHINES_VIEW, P.INSPECTIONS_VIEW, P.INSPECTIONS_CREATE]}><Plants /></Guard>} />
         <Route path="plants/:id" element={<Guard perms={[P.PLANTS_VIEW, P.MACHINES_VIEW, P.INSPECTIONS_VIEW, P.INSPECTIONS_CREATE]}><PlantDetail /></Guard>} />
