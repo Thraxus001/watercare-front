@@ -51,21 +51,93 @@ export default function Login() {
           {busy ? "Signing in…" : "Sign in to WaterCare"}
         </Button>
 
-        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <div className="truncate mr-2">
-            <span className="text-slate-400">Demo admin: </span>
-            <span className="font-mono text-slate-600 text-[11px]">admin@yourcompany.com</span>
+        <div className="mt-6 pt-5 border-t border-slate-200/80">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-xs font-semibold text-slate-700">Seed Accounts & Credentials</span>
+            <span className="text-[11px] font-mono text-slate-400">Password: ChangeMe123!</span>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("admin@yourcompany.com");
-              setPassword("ChangeMe123!");
-            }}
-            className="text-sky-600 hover:text-sky-700 font-semibold text-xs whitespace-nowrap hover:underline cursor-pointer"
-          >
-            Auto-fill
-          </button>
+
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("admin@yourcompany.com");
+                setPassword("ChangeMe123!");
+              }}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-sky-50/80 hover:border-sky-300 transition-colors text-left group cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-6 h-6 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center text-[10px] font-bold shrink-0">
+                  ADM
+                </span>
+                <div className="truncate">
+                  <div className="text-xs font-semibold text-slate-800 group-hover:text-sky-900">System Admin</div>
+                  <div className="text-[11px] text-slate-500 font-mono truncate">admin@yourcompany.com</div>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-sky-600 group-hover:underline shrink-0 ml-2">Fill</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("admin@watercare.local");
+                setPassword("ChangeMe123!");
+              }}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-sky-50/80 hover:border-sky-300 transition-colors text-left group cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold shrink-0">
+                  ADM
+                </span>
+                <div className="truncate">
+                  <div className="text-xs font-semibold text-slate-800 group-hover:text-indigo-900">Admin (Local)</div>
+                  <div className="text-[11px] text-slate-500 font-mono truncate">admin@watercare.local</div>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-sky-600 group-hover:underline shrink-0 ml-2">Fill</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("john.tech@watercare.local");
+                setPassword("ChangeMe123!");
+              }}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-sky-50/80 hover:border-sky-300 transition-colors text-left group cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold shrink-0">
+                  TEC
+                </span>
+                <div className="truncate">
+                  <div className="text-xs font-semibold text-slate-800 group-hover:text-emerald-900">John Doe (Technician)</div>
+                  <div className="text-[11px] text-slate-500 font-mono truncate">john.tech@watercare.local</div>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-sky-600 group-hover:underline shrink-0 ml-2">Fill</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("sarah.operator@watercare.local");
+                setPassword("ChangeMe123!");
+              }}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-sky-50/80 hover:border-sky-300 transition-colors text-left group cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-6 h-6 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-[10px] font-bold shrink-0">
+                  OPR
+                </span>
+                <div className="truncate">
+                  <div className="text-xs font-semibold text-slate-800 group-hover:text-purple-900">Sarah Connor (Operator)</div>
+                  <div className="text-[11px] text-slate-500 font-mono truncate">sarah.operator@watercare.local</div>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-sky-600 group-hover:underline shrink-0 ml-2">Fill</span>
+            </button>
+          </div>
         </div>
       </form>
     </div>
