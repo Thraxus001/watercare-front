@@ -1,4 +1,4 @@
-const BASE: string = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const BASE: string = import.meta.env.VITE_API_URL ?? "https://watercare-back.onrender.com";
 
 // ───────────── Types (mirror the backend schemas) ─────────────
 export type Role = "admin" | "user";
