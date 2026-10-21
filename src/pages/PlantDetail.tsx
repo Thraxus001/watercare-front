@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, P, type Machine, type MachineType, type Plant } from "../api";
 import { useAuth } from "../auth";
+import { parseCoord, requestGpsLocation } from "../utils";
 import {
   Badge, Button, Card, ErrorMsg, Field, Loading, Status,
   btnClass, cardCls, choiceCls, cn, errMsg, gridCls, h2Cls, inputCls, linkCls, mutedCls, tdCls, thCls, useAsync,
@@ -12,10 +13,30 @@ function EditPlant({ plant, onDone }: { plant: Plant; onDone: () => void }) {
     name: plant.name,
     code: plant.code ?? "",
     location: plant.location,
+    latitude: plant.latitude === null ? "" : String(plant.latitude),
+    longitude: plant.longitude === null ? "" : String(plant.longitude),
     description: plant.description ?? "",
     is_active: plant.is_active,
   });
   const [error, setError] = useState<string | null>(null);
+  const [pickingLocation, setPickingLocation] = useState(false);
+
+  async function pickLocation() {
+    setError(null);
+    setPickingLocation(true);
+    try {
+      const coords = await requestGpsLocation();
+      setF((current) => ({
+        ...current,
+        latitude: String(coords.latitude),
+        longitude: String(coords.longitude),
+      }));
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setPickingLocation(false);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault(); setError(null);
@@ -24,6 +45,8 @@ function EditPlant({ plant, onDone }: { plant: Plant; onDone: () => void }) {
         name: f.name.trim(),
         code: f.code.trim() || null,
         location: f.location.trim(),
+        latitude: parseCoord(f.latitude),
+        longitude: parseCoord(f.longitude),
         description: f.description.trim() || null,
         is_active: f.is_active,
       });
@@ -38,6 +61,13 @@ function EditPlant({ plant, onDone }: { plant: Plant; onDone: () => void }) {
         <Field label="Plant name"><input className={inputCls} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /></Field>
         <Field label="Plant code"><input className={inputCls} value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} /></Field>
         <Field label="Location"><input className={inputCls} value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} required /></Field>
+        <Field label="Latitude (optional)"><input className={inputCls} type="number" step="any" min="-90" max="90" value={f.latitude} onChange={(e) => setF({ ...f, latitude: e.target.value })} /></Field>
+        <Field label="Longitude (optional)"><input className={inputCls} type="number" step="any" min="-180" max="180" value={f.longitude} onChange={(e) => setF({ ...f, longitude: e.target.value })} /></Field>
+        <div className="flex items-end">
+          <Button type="button" disabled={pickingLocation} onClick={pickLocation}>
+            {pickingLocation ? "Getting location…" : "📍 Pick location"}
+          </Button>
+        </div>
       </div>
       <Field label="Description" className="mt-3">
         <textarea className={cn(inputCls, "min-h-16")} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
@@ -53,11 +83,36 @@ function EditPlant({ plant, onDone }: { plant: Plant; onDone: () => void }) {
   );
 }
 
-function AddMachineToPlant({ plantId, defaultLocation, onDone }: { plantId: number; defaultLocation: string; onDone: () => void }) {
+function AddMachineToPlant({ plantId, defaultLocation, defaultLatitude, defaultLongitude, onDone }: { plantId: number; defaultLocation: string; defaultLatitude?: number | null; defaultLongitude?: number | null; onDone: () => void }) {
   const types = useAsync(() => api.get<MachineType[]>("/machine-types"), []);
-  const [f, setF] = useState({ name: "", serial_number: "", location: defaultLocation, machine_type_id: "" });
+  const [f, setF] = useState({
+    name: "",
+    serial_number: "",
+    location: defaultLocation,
+    machine_type_id: "",
+    latitude: defaultLatitude != null ? String(defaultLatitude) : "",
+    longitude: defaultLongitude != null ? String(defaultLongitude) : "",
+  });
   const [error, setError] = useState<string | null>(null);
+  const [pickingLocation, setPickingLocation] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+
+  async function pickLocation() {
+    setError(null);
+    setPickingLocation(true);
+    try {
+      const coords = await requestGpsLocation();
+      setF((current) => ({
+        ...current,
+        latitude: String(coords.latitude),
+        longitude: String(coords.longitude),
+      }));
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setPickingLocation(false);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault(); setError(null);
@@ -68,12 +123,15 @@ function AddMachineToPlant({ plantId, defaultLocation, onDone }: { plantId: numb
         location: f.location.trim() || null,
         machine_type_id: Number(f.machine_type_id),
         plant_id: plantId,
+        latitude: parseCoord(f.latitude),
+        longitude: parseCoord(f.longitude),
       });
       onDone();
     } catch (err) { setError(errMsg(err)); }
   }
 
   return (
+    <form>
     <form className={cardCls} onSubmit={submit}>
       <h2 className={h2Cls}>Add machine to this plant</h2>
       <div className={gridCls}>
@@ -86,8 +144,19 @@ function AddMachineToPlant({ plantId, defaultLocation, onDone }: { plantId: numb
           </select>
         </Field>
         <Field label="Specific bay / skid position"><input className={inputCls} placeholder="e.g. Bay 2" value={f.location} onChange={set("location")} /></Field>
+        <Field label="Latitude (optional)"><input className={inputCls} type="number" step="any" min="-90" max="90" value={f.latitude} onChange={set("latitude")} /></Field>
+        <Field label="Longitude (optional)"><input className={inputCls} type="number" step="any" min="-180" max="180" value={f.longitude} onChange={set("longitude")} /></Field>
+        <div className="flex items-end">
+          <Button type="button" disabled={pickingLocation} onClick={pickLocation}>
+            {pickingLocation ? "Getting location…" : " Pick location"}
+          </Button>
+        </div>
       </div>
       <ErrorMsg error={error} />
+      <Button variant="primary" className="mt-3">Save machine</Button>
+    </form>
+  );
+
       <Button variant="primary" className="mt-3">Save machine</Button>
     </form>
   );
@@ -143,11 +212,22 @@ export default function PlantDetail() {
 
             <div className="mt-2.5 flex flex-wrap items-center gap-2 text-sm text-slate-600">
               <span className="inline-flex items-center gap-1 font-semibold text-slate-700 bg-slate-100 rounded-lg px-2.5 py-1 text-xs">
-                
                 <span>{p.location}</span>
               </span>
+              {p.latitude !== null && p.longitude !== null && (
+                <span className="inline-flex items-center gap-1 font-semibold text-sky-800 bg-sky-50 border border-sky-200/60 rounded-lg px-2.5 py-1 text-xs">
+                  <span>📍 {p.latitude.toFixed(6)}, {p.longitude.toFixed(6)}</span>
+                  <a
+                    href={`https://www.google.com/maps?q=${p.latitude},${p.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-1 text-sky-600 underline hover:text-sky-800"
+                  >
+                    Map ↗
+                  </a>
+                </span>
+              )}
               <span className="inline-flex items-center gap-1 font-semibold text-slate-700 bg-slate-100 rounded-lg px-2.5 py-1 text-xs">
-                
                 <span><b>{p.machine_count}</b> {p.machine_count === 1 ? "machine" : "machines"} in plant</span>
               </span>
               <Status last={p.last_inspection} />
@@ -187,6 +267,8 @@ export default function PlantDetail() {
         <AddMachineToPlant
           plantId={p.id}
           defaultLocation={p.location}
+          defaultLatitude={p.latitude}
+          defaultLongitude={p.longitude}
           onDone={() => {
             setAddingMachine(false);
             machines.reload();

@@ -1,4 +1,8 @@
-const BASE: string = import.meta.env.VITE_API_URL ?? "https://watercare-back.onrender.com";
+const BASE: string =
+  import.meta.env.VITE_API_URL ??
+  (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:8000"
+    : "https://watercare-back.onrender.com");
 
 // ───────────── Types (mirror the backend schemas) ─────────────
 export type Role = "admin" | "user";
@@ -30,16 +34,19 @@ export interface CheckItem {
 export interface LastInspection { id: number; performed_at: string; performed_by_name: string }
 export interface Plant {
   id: number; name: string; code: string | null; location: string; description: string | null
+  latitude: number | null; longitude: number | null
   is_active: boolean; machine_count: number; active_machines_count: number; last_inspection: LastInspection | null
 }
 export interface Machine {
   id: number; plant_id: number | null; plant_name: string | null; plant_location: string | null
   name: string; serial_number: string; location: string | null; installed_on: string | null
+  latitude: number | null; longitude: number | null
   is_active: boolean; machine_type_id: number; machine_type_name: string; last_inspection: LastInspection | null
 }
 export interface InspectionSummary {
   id: number; machine_id: number; machine_name: string; performed_by: number
   performed_by_name: string; performed_at: string; summary: string | null
+  latitude: number | null; longitude: number | null; location_accuracy: number | null
 }
 export interface AnswerOption { option_id: number | null; label: string; is_checked: boolean }
 export interface Answer { check_item_id: number | null; label: string; category: Category; input_type: InputType; options: AnswerOption[] }

@@ -1,9 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, type Category, type CheckItem, type Inspection, type Machine } from "../api";
+import { api, type Category, type CheckItem, type Inspection, type Machine, type Plant } from "../api";
+import { haversineMetres, parseCoord } from "../utils";
 import { Button, Card, ErrorMsg, Field, Loading, choiceCls, cn, errMsg, h1Cls, h2Cls, inputCls, mutedCls, useAsync } from "../ui";
 
 const TITLES: Record<Category, string> = { operation: "Operation checks", maintenance: "Maintenance checks" };
+type GpsState = "pending" | "acquired" | "denied" | "error";
+type Coordinates = { latitude: number; longitude: number; accuracy: number };
 
 export default function NewInspection() {
   const { id } = useParams();
@@ -11,7 +14,11 @@ export default function NewInspection() {
   const { data, error, loading } = useAsync(async () => {
     const machine = await api.get<Machine>(`/machines/${id}`);
     const items = await api.get<CheckItem[]>(`/machine-types/${machine.machine_type_id}/check-items`);
-    return { machine, items };
+    let plant: Plant | null = null;
+    if (machine.plant_id) {
+      try { plant = await api.get<Plant>(`/plants/${machine.plant_id}`); } catch { /* ignore */ }
+    }
+    return { machine, items, plant };
   }, [id]);
 
   const [sel, setSel] = useState<Record<number, number[]>>({});
@@ -19,10 +26,92 @@ export default function NewInspection() {
   const [note, setNote] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [gpsState, setGpsState] = useState<GpsState>("pending");
+  const [coords, setCoords] = useState<Coordinates | null>(null);
+  const [gpsAttempt, setGpsAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGpsState("error");
+      return;
+    }
+    setGpsState("pending");
+    let watchId = -1;
+    let timeoutId: number | undefined;
+
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setCoords({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        });
+        setGpsState("acquired");
+      },
+      (positionError) => setGpsState(positionError.code === 1 ? "denied" : "error"),
+      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 },
+    );
+
+    timeoutId = window.setTimeout(() => {
+      setGpsState((current) => (current === "pending" ? "error" : current));
+    }, 25_000);
+
+    return () => {
+      if (watchId >= 0) navigator.geolocation.clearWatch(watchId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [gpsAttempt]);
 
   if (loading && !data) return <Loading />;
   if (!data) return <ErrorMsg error={error} />;
-  const { machine, items } = data;
+  const { machine, items, plant } = data;
+
+  // Determine pre-registered location: machine coordinates take precedence, then plant
+  const machineLat = parseCoord(machine.latitude);
+  const machineLon = parseCoord(machine.longitude);
+  const plantLat = parseCoord(plant?.latitude);
+  const plantLon = parseCoord(plant?.longitude);
+
+  const targetLat = machineLat ?? plantLat ?? null;
+  const targetLon = machineLon ?? plantLon ?? null;
+  const targetLabel = machineLat != null
+    ? `machine '${machine.name}'`
+    : plantLat != null
+    ? `plant '${plant?.name}'`
+    : null;
+
+  const hasRegisteredLocation = targetLat !== null && targetLon !== null;
+  const distanceMetres = coords && hasRegisteredLocation
+    ? haversineMetres(targetLat, targetLon, coords.latitude, coords.longitude)
+    : null;
+
+  // The margin for error is ±10 meters from the preregistered location
+  const locationAllowed = !hasRegisteredLocation || (distanceMetres !== null && distanceMetres <= 10.0);
+  const canSubmitLocation = gpsState === "acquired" && coords !== null && locationAllowed;
+
+  let gpsMessage = "Acquiring GPS location from your device…";
+  let gpsStyle = "border-sky-200 bg-sky-50 text-sky-800";
+
+  if (gpsState === "denied") {
+    gpsMessage = "Location access denied. Please allow GPS access in your browser to submit this checkup.";
+    gpsStyle = "border-rose-200 bg-rose-50 text-rose-800";
+  } else if (gpsState === "error") {
+    gpsMessage = "Unable to get your GPS location. Please check device location settings and click Retry.";
+    gpsStyle = "border-rose-200 bg-rose-50 text-rose-800";
+  } else if (gpsState === "acquired") {
+    if (hasRegisteredLocation) {
+      if (distanceMetres !== null && distanceMetres <= 10.0) {
+        gpsMessage = `✔ Location verified: You are ${distanceMetres.toFixed(1)} m from ${targetLabel} (within ±10 m radius).`;
+        gpsStyle = "border-emerald-200 bg-emerald-50 text-emerald-800";
+      } else {
+        gpsMessage = `✘ Outside allowed radius: You are ${distanceMetres?.toFixed(1)} m away from ${targetLabel}. You must be within 10 m to submit.`;
+        gpsStyle = "border-rose-200 bg-rose-50 text-rose-800";
+      }
+    } else {
+      gpsMessage = `ℹ️ No pre-registered coordinates on machine/plant. Your device location (${coords?.latitude.toFixed(6)}, ${coords?.longitude.toFixed(6)}) will be stamped on this checkup.`;
+      gpsStyle = "border-emerald-200 bg-emerald-50 text-emerald-800";
+    }
+  }
 
   const pick = (item: CheckItem, optId: number, on: boolean) =>
     setSel((s) => {
@@ -33,12 +122,21 @@ export default function NewInspection() {
 
   async function submit(e: FormEvent) {
     e.preventDefault(); setFormError(null);
+    if (!coords || !canSubmitLocation) {
+      if (hasRegisteredLocation && distanceMetres !== null && distanceMetres > 10.0) {
+        setFormError(`Submission rejected: You are ${distanceMetres.toFixed(1)} m away from ${targetLabel}. You must be within a 10-meter radius to submit.`);
+      } else {
+        setFormError("Device GPS location is required to submit this checkup.");
+      }
+      return;
+    }
     const missing = items.filter((i) => i.is_required && !(sel[i.id]?.length));
     if (missing.length) { setFormError(`Please complete: ${missing.map((m) => m.label).join(", ")}`); return; }
     setBusy(true);
     try {
       const res = await api.post<Inspection>("/inspections", {
         machine_id: machine.id, summary: summary || null, note: note || null,
+        latitude: coords.latitude, longitude: coords.longitude, location_accuracy: coords.accuracy,
         answers: items.map((i) => ({ check_item_id: i.id, selected_option_ids: sel[i.id] ?? [] })),
       });
       nav(`/inspections/${res.id}`);
@@ -128,6 +226,24 @@ export default function NewInspection() {
 
       {items.length > 0 && (
         <Card className="space-y-4">
+          <div role="status" className={cn("rounded-xl border px-3 py-2.5 text-sm font-medium", gpsStyle)}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                {gpsState === "pending" && <span className="mr-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-r-transparent align-[-2px]" />}
+                <span>{gpsMessage}</span>
+                {coords && (
+                  <span className="ml-1 text-xs opacity-80 block sm:inline">
+                    · Device GPS: {coords.latitude.toFixed(6)}, {coords.longitude.toFixed(6)} (±{Math.round(coords.accuracy)} m)
+                  </span>
+                )}
+              </div>
+              {gpsState !== "pending" && (
+                <Button type="button" size="sm" onClick={() => setGpsAttempt((attempt) => attempt + 1)}>
+                  🔄 Re-check GPS
+                </Button>
+              )}
+            </div>
+          </div>
           <Field label="Inspection summary (optional)">
             <input
               className={inputCls}
@@ -145,7 +261,11 @@ export default function NewInspection() {
             />
           </Field>
           <ErrorMsg error={formError} />
-          <Button variant="primary" disabled={busy} className="w-full sm:w-auto">
+          <Button
+            variant="primary"
+            disabled={busy || !canSubmitLocation}
+            className="w-full sm:w-auto"
+          >
             {busy ? "Submitting checkup…" : "Submit checkup"}
           </Button>
         </Card>

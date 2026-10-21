@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { api, P, type Category, type Inspection, type Note } from "../api";
 import { useAuth } from "../auth";
+import { parseCoord } from "../utils";
 import { Card, ErrorMsg, Loading, cn, fmt, h2Cls, linkCls, mutedCls, noteCls, useAsync } from "../ui";
 
 const TITLES: Record<Category, string> = { operation: "Operation checks", maintenance: "Maintenance checks" };
@@ -50,10 +51,26 @@ export default function InspectionView() {
               Checkup · {i.machine_name}
             </h1>
             <div className={cn(mutedCls, "mt-1.5 flex flex-wrap items-center gap-2 text-sm")}>
-              <span className="font-semibold text-slate-800">📅 {fmt(i.performed_at)}</span>
+              <span className="font-semibold text-slate-800"> {fmt(i.performed_at)}</span>
               <span>·</span>
               <span>Inspected by <b>{i.performed_by_name}</b></span>
             </div>
+            {parseCoord(i.latitude) !== null && parseCoord(i.longitude) !== null && (
+              <div className="mt-2.5 inline-flex flex-wrap items-center gap-2 rounded-lg bg-sky-50 border border-sky-200/70 px-2.5 py-1 text-xs text-sky-900 font-medium">
+                <span>📍 GPS Stamp: {parseCoord(i.latitude)!.toFixed(6)}, {parseCoord(i.longitude)!.toFixed(6)}</span>
+                {i.location_accuracy !== null && (
+                  <span className="text-sky-600 font-normal">±{Math.round(i.location_accuracy)} m</span>
+                )}
+                <a
+                  href={`https://www.google.com/maps?q=${i.latitude},${i.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-sky-700 underline hover:text-sky-950 ml-1"
+                >
+                  View on map ↗
+                </a>
+              </div>
+            )}
             {i.summary && (
               <div className="mt-3 bg-slate-50 border border-slate-200/60 rounded-xl p-3 text-sm text-slate-700 leading-relaxed">
                 <span className="font-semibold text-slate-900 block mb-0.5 text-xs uppercase tracking-wide">Summary:</span>

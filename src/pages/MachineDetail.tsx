@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, P, type InspectionSummary, type Machine, type MachineType, type Note, type Plant } from "../api";
 import { useAuth } from "../auth";
+import { parseCoord, requestGpsLocation } from "../utils";
 import {
   Badge, Button, Card, ErrorMsg, Field, Loading, Status, btnClass, choiceCls, cn, errMsg, fmt, gridCls, h2Cls,
   inputCls, linkCls, mutedCls, noteCls, tdCls, thCls, useAsync,
@@ -17,8 +18,28 @@ function EditMachine({ m, onDone }: { m: Machine; onDone: () => void }) {
     machine_type_id: String(m.machine_type_id),
     plant_id: m.plant_id ? String(m.plant_id) : "",
     is_active: m.is_active,
+    latitude: m.latitude === null ? "" : String(m.latitude),
+    longitude: m.longitude === null ? "" : String(m.longitude),
   });
   const [error, setError] = useState<string | null>(null);
+  const [pickingLocation, setPickingLocation] = useState(false);
+
+  async function pickLocation() {
+    setError(null);
+    setPickingLocation(true);
+    try {
+      const coords = await requestGpsLocation();
+      setF((current) => ({
+        ...current,
+        latitude: String(coords.latitude),
+        longitude: String(coords.longitude),
+      }));
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setPickingLocation(false);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault(); setError(null);
@@ -28,7 +49,9 @@ function EditMachine({ m, onDone }: { m: Machine; onDone: () => void }) {
         serial_number: f.serial_number.trim(),
         machine_type_id: Number(f.machine_type_id),
         plant_id: f.plant_id ? Number(f.plant_id) : null,
-        location: f.location || null,
+        location: f.location.trim() || null,
+        latitude: parseCoord(f.latitude),
+        longitude: parseCoord(f.longitude),
         is_active: f.is_active,
       });
       onDone();
@@ -47,6 +70,13 @@ function EditMachine({ m, onDone }: { m: Machine; onDone: () => void }) {
           </select>
         </Field>
         <Field label="Specific bay / position"><input className={inputCls} value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} /></Field>
+        <Field label="Latitude (optional)"><input className={inputCls} type="number" step="any" min="-90" max="90" value={f.latitude} onChange={(e) => setF({ ...f, latitude: e.target.value })} /></Field>
+        <Field label="Longitude (optional)"><input className={inputCls} type="number" step="any" min="-180" max="180" value={f.longitude} onChange={(e) => setF({ ...f, longitude: e.target.value })} /></Field>
+        <div className="flex items-end">
+          <Button type="button" disabled={pickingLocation} onClick={pickLocation}>
+            {pickingLocation ? "Getting location…" : "Pick location"}
+          </Button>
+        </div>
         <Field label="Machine type">
           <select className={inputCls} value={f.machine_type_id} onChange={(e) => setF({ ...f, machine_type_id: e.target.value })}>
             {types.data?.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -147,11 +177,29 @@ export default function MachineDetail() {
                 <>
                   <span className="text-slate-300">·</span>
                   <span className="inline-flex items-center gap-1">
-                    <span>🌱</span>
+                  
                     <Link className={linkCls} to={`/plants/${m.plant_id}`}>{m.plant_name}</Link>
                     <span className="text-slate-400">({m.plant_location ?? m.location})</span>
                   </span>
                 </>
+              )}
+            </div>
+            <div className={cn(mutedCls, "mt-2 text-xs flex items-center gap-1.5")}>
+              <span>📍 Registered GPS location:</span>
+              {parseCoord(m.latitude) !== null && parseCoord(m.longitude) !== null ? (
+                <>
+                  <span className="font-mono text-slate-700">{parseCoord(m.latitude)!.toFixed(6)}, {parseCoord(m.longitude)!.toFixed(6)}</span>
+                  <a
+                    href={`https://www.google.com/maps?q=${m.latitude},${m.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-600 underline hover:text-sky-800 ml-1"
+                  >
+                    Map ↗
+                  </a>
+                </>
+              ) : (
+                <span className="text-amber-600 font-medium">Not registered individually (will use plant location if available)</span>
               )}
             </div>
           </div>

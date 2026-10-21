@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api, P, type Machine, type MachineType, type Plant } from "../api";
+import { parseCoord, requestGpsLocation } from "../utils";
 import { useAuth } from "../auth";
 import {
   Button, ErrorMsg, Field, Loading, Status, btnClass, cardCls, choiceCls, cn, errMsg, gridCls, h1Cls, h2Cls,
@@ -10,18 +11,41 @@ import {
 function AddMachine({ onDone }: { onDone: () => void }) {
   const types = useAsync(() => api.get<MachineType[]>("/machine-types"), []);
   const plants = useAsync(() => api.get<Plant[]>("/plants"), []);
-  const [f, setF] = useState({ name: "", serial_number: "", plant_id: "", location: "", machine_type_id: "" });
+  const [f, setF] = useState({
+    name: "", serial_number: "", plant_id: "", location: "", machine_type_id: "", latitude: "", longitude: "",
+  });
   const [error, setError] = useState<string | null>(null);
-  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const [pickingLocation, setPickingLocation] = useState(false);
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((cur) => ({ ...cur, [k]: e.target.value }));
+
+  async function pickLocation() {
+    setError(null);
+    setPickingLocation(true);
+    try {
+      const coords = await requestGpsLocation();
+      setF((current) => ({
+        ...current,
+        latitude: String(coords.latitude),
+        longitude: String(coords.longitude),
+      }));
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setPickingLocation(false);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault(); setError(null);
     try {
       await api.post("/machines", {
-        ...f,
+        name: f.name.trim(),
+        serial_number: f.serial_number.trim(),
         machine_type_id: Number(f.machine_type_id),
         plant_id: f.plant_id ? Number(f.plant_id) : null,
-        location: f.location || null,
+        location: f.location.trim() || null,
+        latitude: parseCoord(f.latitude),
+        longitude: parseCoord(f.longitude),
       });
       onDone();
     } catch (err) { setError(errMsg(err)); }
@@ -33,12 +57,32 @@ function AddMachine({ onDone }: { onDone: () => void }) {
         <Field label="Name"><input className={inputCls} value={f.name} onChange={set("name")} required /></Field>
         <Field label="Serial number"><input className={inputCls} value={f.serial_number} onChange={set("serial_number")} required /></Field>
         <Field label="Plant">
-          <select className={inputCls} value={f.plant_id} onChange={set("plant_id")}>
+          <select
+            className={inputCls}
+            value={f.plant_id}
+            onChange={(e) => {
+              const pid = e.target.value;
+              const selectedPlant = plants.data?.find((p) => String(p.id) === pid);
+              setF((current) => ({
+                ...current,
+                plant_id: pid,
+                latitude: current.latitude || (selectedPlant?.latitude != null ? String(selectedPlant.latitude) : ""),
+                longitude: current.longitude || (selectedPlant?.longitude != null ? String(selectedPlant.longitude) : ""),
+              }));
+            }}
+          >
             <option value="">Select plant…</option>
             {plants.data?.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.location})</option>)}
           </select>
         </Field>
         <Field label="Specific bay / position"><input className={inputCls} value={f.location} onChange={set("location")} /></Field>
+        <Field label="Latitude (optional)"><input className={inputCls} type="number" step="any" min="-90" max="90" value={f.latitude} onChange={set("latitude")} /></Field>
+        <Field label="Longitude (optional)"><input className={inputCls} type="number" step="any" min="-180" max="180" value={f.longitude} onChange={set("longitude")} /></Field>
+        <div className="flex items-end">
+          <Button type="button" disabled={pickingLocation} onClick={pickLocation}>
+            {pickingLocation ? "Getting location…" : "Pick location"}
+          </Button>
+        </div>
         <Field label="Machine type">
           <select className={inputCls} value={f.machine_type_id} onChange={set("machine_type_id")} required>
             <option value="">Select…</option>
@@ -143,12 +187,15 @@ export default function Machines() {
                     <td className={tdCls}>
                       {m.plant_id ? (
                         <Link className={cn(linkCls, "font-semibold")} to={`/plants/${m.plant_id}`}>
-                          🌱 {m.plant_name}
+                           {m.plant_name}
                         </Link>
                       ) : (
                         <span className="text-slate-600">{m.plant_name ?? "—"}</span>
                       )}
                       <div className={cn(mutedCls, "text-xs")}>{m.plant_location ?? m.location ?? "—"}</div>
+                      {m.latitude !== null && m.longitude !== null && (
+                        <div className={cn(mutedCls, "text-xs")}>GPS: {m.latitude}, {m.longitude}</div>
+                      )}
                     </td>
                     <td className={tdCls}>
                       <span className="font-medium text-slate-700">{m.machine_type_name}</span>

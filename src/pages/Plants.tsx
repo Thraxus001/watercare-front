@@ -2,15 +2,34 @@ import { useState, useMemo, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, P, type Plant } from "../api";
 import { useAuth } from "../auth";
+import { parseCoord, requestGpsLocation } from "../utils";
 import {
   Badge, Button, Card, ErrorMsg, Field, Loading, Status,
   cardCls, choiceCls, cn, errMsg, gridCls, h1Cls, h2Cls, inputCls, mutedCls, useAsync,
 } from "../ui";
 
 function AddPlant({ onDone }: { onDone: () => void }) {
-  const [f, setF] = useState({ name: "", code: "", location: "", description: "" });
+  const [f, setF] = useState({ name: "", code: "", location: "", description: "", latitude: "", longitude: "" });
   const [error, setError] = useState<string | null>(null);
+  const [pickingLocation, setPickingLocation] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+
+  async function pickLocation() {
+    setError(null);
+    setPickingLocation(true);
+    try {
+      const coords = await requestGpsLocation();
+      setF((current) => ({
+        ...current,
+        latitude: String(coords.latitude),
+        longitude: String(coords.longitude),
+      }));
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setPickingLocation(false);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault(); setError(null);
@@ -20,6 +39,8 @@ function AddPlant({ onDone }: { onDone: () => void }) {
         code: f.code.trim() || null,
         location: f.location.trim(),
         description: f.description.trim() || null,
+        latitude: parseCoord(f.latitude),
+        longitude: parseCoord(f.longitude),
       });
       onDone();
     } catch (err) { setError(errMsg(err)); }
@@ -35,6 +56,13 @@ function AddPlant({ onDone }: { onDone: () => void }) {
         <Field label="Plant name"><input className={inputCls} placeholder="e.g. Reverse Osmosis Treatment Plant" value={f.name} onChange={set("name")} required /></Field>
         <Field label="Plant code (optional)"><input className={inputCls} placeholder="e.g. PLT-RO-01" value={f.code} onChange={set("code")} /></Field>
         <Field label="Location"><input className={inputCls} placeholder="e.g. Main Water Facility" value={f.location} onChange={set("location")} required /></Field>
+        <Field label="Latitude (optional)"><input className={inputCls} type="number" step="any" min="-90" max="90" placeholder="e.g. 1.234567" value={f.latitude} onChange={set("latitude")} /></Field>
+        <Field label="Longitude (optional)"><input className={inputCls} type="number" step="any" min="-180" max="180" placeholder="e.g. 36.821946" value={f.longitude} onChange={set("longitude")} /></Field>
+        <div className="flex items-end">
+          <Button type="button" disabled={pickingLocation} onClick={pickLocation}>
+            {pickingLocation ? "Getting location…" : "📍 Pick location"}
+          </Button>
+        </div>
       </div>
       <Field label="Description (optional)" className="mt-3">
         <textarea className={cn(inputCls, "min-h-18")} placeholder="Plant purpose, capacity, or operational notes…" value={f.description} onChange={set("description")} />
@@ -268,11 +296,15 @@ export default function Plants() {
                       </div>
 
                       <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          
+                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
                           <span>
                             <b>{p.machine_count}</b> {p.machine_count === 1 ? "machine" : "machines in plant"}
                           </span>
+                          {p.latitude !== null && p.longitude !== null && (
+                            <span className="inline-flex items-center rounded-md bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">
+                              📍 GPS
+                            </span>
+                          )}
                         </div>
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-sky-600 group-hover:text-sky-700 transition-colors">
                           <span>View machines</span>
